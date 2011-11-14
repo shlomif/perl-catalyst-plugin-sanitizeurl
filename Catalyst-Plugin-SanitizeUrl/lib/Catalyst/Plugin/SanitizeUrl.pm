@@ -9,7 +9,7 @@ use base 'Catalyst::Plugin::SanitizeUrl::PrepAction';
 
 sub get_action_path
 {
-    my $c    = shift;
+    my ($self, $c) = @_;
     my $path = $c->req->path;
     return [ split /\//, $c->req->path, (-1) ];
 }

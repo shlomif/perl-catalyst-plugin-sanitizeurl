@@ -1,5 +1,8 @@
 Revision history for Perl extension Catalyst::Plugin::SanitizeUrl.
 
+    - Updated to the new Catalyst.
+        - Hopefully fixing https://rt.cpan.org/Ticket/Display.html?id=72399 .
+
 0.2.1   Wed 29 Oct 2008
     - Converted to Build.PL.
     - Added a license field.

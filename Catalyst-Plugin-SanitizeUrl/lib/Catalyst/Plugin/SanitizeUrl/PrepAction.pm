@@ -22,7 +22,7 @@ containing the
 =cut
 
 sub get_action_path {
-    my $c    = shift;
+    my ($self, $c) = @_;
     my $path = $c->req->path;
     return [ split /\//, $c->req->path ];
 }
@@ -35,47 +35,37 @@ method. <sigh />
 
 =cut
 
-
 sub prepare_action {
-    my $c    = shift;
-    my $path;    
-    my @path = @{$c->get_action_path};
-    $c->req->args( \my @args );
-
-    while (@path) {
+    my ( $self, $c ) = @_;
+    my $req = $c->req;
+    my $path = $req->path;
+    my @path = @{$self->get_action_path($c)};
+    $req->args( \my @args );
+ 
+    unshift( @path, '' );    # Root action
+ 
+  DESCEND: while (@path) {
         $path = join '/', @path;
-        if ( my $result = ${ $c->get_action($path) }[0] ) {
-
-            # It's a regex
-            if ($#$result) {
-                my $match    = $result->[1];
-                my @snippets = @{ $result->[2] };
-                $c->log->debug(
-                    qq/Requested action is "$path" and matched "$match"/)
-                  if $c->debug;
-                $c->log->debug(
-                    'Snippets are "' . join( ' ', @snippets ) . '"' )
-                  if ( $c->debug && @snippets );
-                $c->req->action($match);
-                $c->req->snippets( \@snippets );
-            }
-
-            else {
-                $c->req->action($path);
-                $c->log->debug(qq/Requested action is "$path"/) if $c->debug;
-            }
-
-            $c->req->match($path);
-            last;
+        $path =~ s#^/+##;
+ 
+        # Check out dispatch types to see if any will handle the path at
+        # this level
+ 
+        foreach my $type ( @{ $self->dispatch_types } ) {
+            last DESCEND if $type->match( $c, $path );
         }
-        unshift @args, pop @path;
+ 
+        # If not, move the last part path to args
+        my $arg = pop(@path);
+        $arg =~ s/%([0-9A-Fa-f]{2})/chr(hex($1))/eg;
+        unshift @args, $arg;
     }
-
-    unless ( $c->req->action ) {
-        $c->req->action('default');
-        $c->req->match('');
-    }
-
+ 
+    s/%([0-9A-Fa-f]{2})/chr(hex($1))/eg for grep { defined } @{$req->captures||[]};
+ 
+    $c->log->debug( 'Path is "' . $req->match . '"' )
+      if ( $c->debug && defined $req->match && length $req->match );
+ 
     $c->log->debug( 'Arguments are "' . join( '/', @args ) . '"' )
       if ( $c->debug && @args );
 }
